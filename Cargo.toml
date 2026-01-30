@@ -1,0 +1,17 @@
+[package]
+name = "sysmon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ratatui = "0.26"      
+crossterm = "0.27"    
+sysinfo = "0.30"      
+tokio = { version = "1.35", features = ["full"] }
+anyhow = "1.0"        
+chrono = "0.4"        
+
+[profile.release]
+opt-level = 3         
+lto = true            
+strip = true          
