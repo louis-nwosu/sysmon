@@ -13,7 +13,7 @@ mod models;
 mod ui;
 
 use collectors::SystemCollector;
-use models::SystemMetrics;
+use models::{SortOrder, SystemMetrics};
 use ui::AppUI;
 
 struct App {
@@ -21,6 +21,7 @@ struct App {
     ui: AppUI,
     metrics: SystemMetrics,
     should_quit: bool,
+    sort_order: SortOrder,
     update_interval: Duration,
     last_update: Instant,
 }
@@ -32,6 +33,7 @@ impl App {
             ui: AppUI::new(),
             metrics: SystemMetrics::default(),
             should_quit: false,
+            sort_order: SortOrder::Cpu,
             update_interval: Duration::from_secs(1),
             last_update: Instant::now(),
         }
@@ -39,7 +41,7 @@ impl App {
 
     fn update(&mut self) -> Result<()> {
         if self.last_update.elapsed() >= self.update_interval {
-            self.metrics = self.collector.collect()?;
+            self.metrics = self.collector.collect_sorted(self.sort_order)?;
             self.last_update = Instant::now();
         }
         Ok(())
@@ -56,7 +58,20 @@ impl App {
                         self.ui.scroll_down(max);
                     }
                     KeyCode::Char('r') => {
-                        self.metrics = self.collector.collect()?;
+                        self.metrics = self.collector.collect_sorted(self.sort_order)?;
+                    }
+                    KeyCode::Char('s') => {
+                        self.sort_order = self.sort_order.next();
+                        self.metrics = self.collector.collect_sorted(self.sort_order)?;
+                    }
+                    KeyCode::Char('k') => {
+                        if let Some(pid) = self.ui.process_table_state.selected() {
+                            if pid < self.metrics.processes.len() {
+                                let target = self.metrics.processes[pid].pid;
+                                self.collector.kill_process(target);
+                                self.metrics = self.collector.collect_sorted(self.sort_order)?;
+                            }
+                        }
                     }
                     _ => {}
                 }
@@ -75,7 +90,7 @@ fn main() -> Result<()> {
 
     let mut app = App::new();
 
-    app.metrics = app.collector.collect()?;
+    app.metrics = app.collector.collect_sorted(app.sort_order)?;
 
     while !app.should_quit {
         app.update()?;
